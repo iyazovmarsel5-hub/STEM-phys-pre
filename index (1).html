@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PhysicsVerse — Interactive Physics Lab</title>
+<style>
+:root{
+  --bg:#050914; --panel:rgba(10,18,40,.68); --panel2:rgba(18,30,62,.7); --line:rgba(120,200,255,.22);
+  --txt:#e8f1ff; --mut:#8aa3c7; --cy:#4cc9ff; --mg:#ff4fa3; --am:#ffc847; --gr:#42f5a1; --rd:#ff5470;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:radial-gradient(ellipse at 50% 15%,#0b1633,#03060f 72%);color:var(--txt);
+  font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+button,input,select{font:inherit;color:inherit}
+#bg3d{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+
+/* ---------- HUD ---------- */
+.hud{position:fixed;top:0;left:0;right:0;height:56px;z-index:10;display:flex;align-items:center;gap:18px;padding:0 20px;
+  background:linear-gradient(#050914dd,#05091400)}
+.brand{font-weight:800;letter-spacing:.3px;font-size:18px;display:flex;align-items:center;gap:8px}
+.brand small{color:var(--mut);font-weight:500;font-size:12px;margin-left:4px}
+.logo{color:var(--cy);font-size:22px}
+.xpbox{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:13px}
+#rank{color:var(--am);font-weight:700}
+.xpbar{width:140px;height:8px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;border:1px solid var(--line)}
+.xpbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cy),var(--gr));transition:width .5s}
+.icon-btn{background:var(--panel);border:1px solid var(--line);border-radius:10px;width:38px;height:34px;cursor:pointer}
+.icon-btn:hover{border-color:var(--cy)}
+
+/* ---------- Deck / slides ---------- */
+#deck{position:fixed;top:56px;bottom:62px;left:0;right:0;z-index:2}
+.slide{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:6px clamp(12px,3vw,44px) 24px;
+  opacity:0;visibility:hidden;transform:translateX(34px) scale(.99);transition:opacity .5s,transform .5s,visibility 0s .5s}
+.slide.before{transform:translateX(-34px) scale(.99)}
+.slide.active{opacity:1;visibility:visible;transform:none;transition:opacity .5s,transform .5s}
+.shead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:2px 0 10px}
+.shead h2{margin:0;font-size:clamp(20px,2.6vw,30px)}
+.tag{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--cy);border:1px solid var(--line);padding:2px 9px;border-radius:99px;background:var(--panel)}
+.sub{color:var(--mut);margin:0 0 10px;max-width:900px}
+
+/* Intro */
+.hero{max-width:1000px;margin:3vh auto 0;text-align:center}
+.eyebrow{color:var(--cy);text-transform:uppercase;letter-spacing:3px;font-size:12px;margin:0}
+.hero h1{font-size:clamp(34px,6vw,68px);line-height:1.05;margin:8px 0 14px;
+  background:linear-gradient(100deg,#fff,var(--cy) 45%,var(--mg));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:clamp(15px,1.6vw,19px);color:#c4d6f2;max-width:760px;margin:0 auto 22px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin:0 0 26px;text-align:left}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;transition:transform .2s,border-color .2s;backdrop-filter:blur(6px)}
+.card:hover{transform:translateY(-4px);border-color:var(--cy)}
+.card b{display:block;font-size:16px;margin:4px 0}
+.card span.ic{font-size:26px}
+.card p{margin:0;color:var(--mut);font-size:13px}
+.hint{color:var(--mut);font-size:12px;margin-top:14px}
+
+/* Lab layout */
+.lab{display:grid;grid-template-columns:minmax(250px,310px) 1fr;gap:14px;align-items:start}
+@media (max-width:860px){.lab{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;backdrop-filter:blur(8px)}
+.controls label{display:block;font-size:13px;color:#c4d6f2;margin-bottom:12px}
+.controls label output{float:right;color:var(--am);font-variant-numeric:tabular-nums;font-weight:600}
+input[type=range]{width:100%;accent-color:var(--cy);margin:4px 0 0}
+select{width:100%;background:#0c1633;border:1px solid var(--line);border-radius:8px;padding:6px 8px;margin-top:4px}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;transition:.15s;font-weight:600}
+.btn:hover:not(:disabled){border-color:var(--cy);transform:translateY(-1px)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:linear-gradient(135deg,#1590d6,#6a4cff);border-color:transparent}
+.btn.big{padding:12px 26px;font-size:17px;border-radius:14px}
+.stats{margin:0;display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px}
+.stats dt{color:var(--mut)} .stats dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.formula{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:var(--cy);background:rgba(0,0,0,.25);border-radius:8px;padding:6px 8px;margin:8px 0 0}
+.stage{position:relative;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:rgba(5,9,20,.55)}
+.stage canvas{display:block;width:100%;height:auto}
+.banner{position:absolute;left:50%;top:18%;transform:translate(-50%,-20px) scale(.8);opacity:0;pointer-events:none;
+  padding:12px 26px;border-radius:14px;font-size:clamp(18px,3vw,30px);font-weight:800;text-align:center;
+  background:rgba(8,14,34,.88);border:2px solid var(--gr);color:var(--gr);box-shadow:0 0 40px rgba(66,245,161,.35);transition:.35s}
+.banner.show{opacity:1;transform:translate(-50%,0) scale(1)}
+.banner.bad{border-color:var(--rd);color:var(--rd);box-shadow:0 0 40px rgba(255,84,112,.35)}
+.banner.info{border-color:var(--am);color:var(--am);box-shadow:0 0 40px rgba(255,200,71,.3)}
+
+/* Energy bars */
+.ebar{display:grid;grid-template-columns:28px 1fr 64px;gap:8px;align-items:center;font-size:12px;margin:5px 0}
+.ebar .bar{height:10px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden}
+.ebar .bar i{display:block;height:100%;width:0;transition:width .08s linear}
+.ebar b{text-align:right;font-variant-numeric:tabular-nums}
+.check{font-size:12.5px;padding:7px 9px;border-radius:8px;background:rgba(0,0,0,.25);border:1px solid var(--line);margin-top:8px}
+.check.ok{border-color:var(--gr);color:var(--gr)} .check.bad{border-color:var(--rd);color:var(--rd)}
+
+/* Space + TPS */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0}
+.fact{background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:12px;padding:8px 10px;text-align:center}
+.fact b{display:block;font-size:20px;color:var(--am)} .fact span{font-size:11px;color:var(--mut)}
+.timer{display:flex;flex-direction:column;align-items:center;gap:8px}
+.ring{width:190px;height:190px}
+.ring-bg{fill:none;stroke:rgba(255,255,255,.1);stroke-width:8}
+.ring-fg{fill:none;stroke:var(--cy);stroke-width:8;stroke-linecap:round;transition:stroke .3s}
+#tText{fill:#fff;font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+#tPhase{fill:var(--am);font-size:8px;letter-spacing:2px}
+details{background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-top:8px}
+summary{cursor:pointer;font-weight:600;color:var(--cy)}
+details p{margin:8px 0 0;font-size:13.5px;color:#c4d6f2}
+
+/* Quiz */
+.opts{display:grid;gap:8px;margin:10px 0}
+.opt{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 14px;cursor:pointer;transition:.15s}
+.opt:hover:not(:disabled){border-color:var(--cy);transform:translateX(3px)}
+.opt.right{border-color:var(--gr);background:rgba(66,245,161,.14)}
+.opt.wrong{border-color:var(--rd);background:rgba(255,84,112,.14)}
+.fb{min-height:44px;font-size:14px;color:#c4d6f2}
+.qprog{display:flex;justify-content:space-between;color:var(--mut);font-size:12px}
+.qbar{height:5px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;margin:4px 0 12px}
+.qbar i{display:block;height:100%;background:linear-gradient(90deg,var(--cy),var(--mg));transition:width .4s}
+.lb{list-style:none;margin:8px 0 0;padding:0;counter-reset:r}
+.lb li{display:flex;gap:10px;padding:7px 10px;border-radius:10px;margin-bottom:5px;background:rgba(0,0,0,.22);counter-increment:r;transition:.3s}
+.lb li::before{content:counter(r);color:var(--mut);width:18px}
+.lb li span{flex:1} .lb li b{font-variant-numeric:tabular-nums;color:var(--am)}
+.lb li.me{border:1px solid var(--cy);background:rgba(76,201,255,.12)}
+.name{width:100%;background:#0c1633;border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.big-score{font-size:46px;font-weight:800;color:var(--am);margin:6px 0}
+
+/* Nav */
+.nav{position:fixed;bottom:0;left:0;right:0;height:62px;z-index:10;display:flex;align-items:center;justify-content:center;gap:14px;
+  background:linear-gradient(#05091400,#050914ee)}
+.dots{display:flex;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;border:1px solid var(--cy);background:transparent;cursor:pointer;padding:0;transition:.25s}
+.dot.on{background:var(--cy);box-shadow:0 0 12px var(--cy);transform:scale(1.25)}
+#slideNum{color:var(--mut);font-size:12px;min-width:46px;text-align:center}
+#toast{position:fixed;right:20px;top:66px;z-index:20;background:rgba(8,14,34,.92);border:1px solid var(--gr);color:var(--gr);
+  padding:8px 14px;border-radius:10px;font-weight:700;opacity:0;transform:translateY(-8px);transition:.3s;pointer-events:none}
+#toast.show{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<canvas id="bg3d" aria-hidden="true"></canvas>
+
+<header class="hud">
+  <div class="brand"><span class="logo">⚛</span> PhysicsVerse <small>Interactive Lab</small></div>
+  <div class="xpbox" aria-live="polite">
+    <span id="rank">Cadet</span>
+    <div class="xpbar"><i id="xpFill"></i></div>
+    <b><span id="xpVal">0</span> XP</b>
+  </div>
+  <button id="muteBtn" class="icon-btn" aria-label="Toggle sound" title="Toggle sound">🔊</button>
+</header>
+
+<main id="deck">
+
+  <!-- ===== Slide 0 · Intro ===== -->
+  <section class="slide" id="s-intro" data-geo="atom" data-title="Intro">
+    <div class="hero">
+      <p class="eyebrow">Physics · Interactive Lesson</p>
+      <h1>Forces, Light &amp; the Cosmos</h1>
+      <p class="lead">Fire a cannon across different planets, ride a roller coaster ruled by energy conservation, bend lasers through glass, and race the clock in the quiz arena. Every success earns XP.</p>
+      <div class="cards">
+        <div class="card" data-go="1"><span class="ic">🎯</span><b>Cannon Lab</b><p>Projectile motion, gravity &amp; wind.</p></div>
+        <div class="card" data-go="2"><span class="ic">🎢</span><b>Roller Coaster</b><p>Energy, friction &amp; loop safety.</p></div>
+        <div class="card" data-go="3"><span class="ic">🔦</span><b>Optics Lab</b><p>Reflection &amp; Snell's law.</p></div>
+        <div class="card" data-go="4"><span class="ic">🚀</span><b>Space Physics</b><p>Orbits &amp; think-pair-share.</p></div>
+        <div class="card" data-go="5"><span class="ic">🏆</span><b>Quiz Arena</b><p>Test yourself, climb the board.</p></div>
+      </div>
+      <button class="btn primary big" data-go="1">Start Mission →</button>
+      <p class="hint">Tip: use ← → keys or the bar below to navigate. Sound effects are synthesised live — no downloads.</p>
+    </div>
+  </section>
+
+  <!-- ===== Slide 1 · Cannon ===== -->
+  <section class="slide" id="s-cannon" data-geo="gyro" data-title="Cannon Lab">
+    <div class="shead"><span class="tag">Mechanics I</span><h2>Ballistic Cannon Lab</h2></div>
+    <p class="sub">Tune angle, speed, wind and planet. The dashed parabola previews your shot in real time — hit the target for +100 XP.</p>
+    <div class="lab">
+      <aside class="panel controls">
+        <label>Launch angle <output id="cAngV">45°</output><input id="cAng" type="range" min="5" max="85" step="1" value="45"></label>
+        <label>Velocity <output id="cVelV">40 m/s</output><input id="cVel" type="range" min="10" max="80" step="1" value="40"></label>
+        <label>Wind speed (+ tailwind) <output id="cWindV">0 m/s</output><input id="cWind" type="range" min="-20" max="20" step="1" value="0"></label>
+        <label>Gravity
+          <select id="cGrav">
+            <option value="earth">Earth — 9.81 m/s²</option>
+            <option value="moon">Moon — 1.62 m/s²</option>
+            <option value="mars">Mars — 3.71 m/s²</option>
+            <option value="jupiter">Jupiter — 24.79 m/s²</option>
+          </select>
+        </label>
+        <div class="btnrow"><button id="cFire" class="btn primary">🔥 Fire Cannon</button><button id="cNew" class="btn">🎯 New Target</button></div>
+        <dl class="stats">
+          <dt>Predicted range</dt><dd id="cRange">—</dd>
+          <dt>Max height</dt><dd id="cApex">—</dd>
+          <dt>Flight time</dt><dd id="cTime">—</dd>
+          <dt>Target distance</dt><dd id="cTarget">—</dd>
+          <dt>Hits / shots</dt><dd id="cScore">0 / 0</dd>
+        </dl>
+        <div class="formula">R = v²·sin 2θ / g<br>h<sub>max</sub> = (v·sin θ)² / 2g<br>wind: a<sub>x</sub> = 0.02·w·g</div>
+      </aside>
+      <div class="stage"><canvas id="cCanvas" width="960" height="480"></canvas><div class="banner" id="cBanner"></div></div>
+    </div>
+  </section>
+
+  <!-- ===== Slide 2 · Roller coaster ===== -->
+  <section class="slide" id="s-coaster" data-geo="gyro" data-title="Roller Coaster">
+    <div class="shead"><span class="tag">Mechanics II</span><h2>Roller Coaster Simulator</h2></div>
+    <p class="sub">Potential energy becomes kinetic energy, and friction steals some as heat. Can the cart survive the loop? It must satisfy v² ≥ g·R at the top.</p>
+    <div class="lab">
+      <aside class="panel controls">
+        <label>Start height <output id="kHV">30 m</output><input id="kH" type="range" min="10" max="60" step="1" value="30"></label>
+        <label>Loop radius <output id="kRV">8 m</output><input id="kR" type="range" min="3" max="15" step="0.5" value="8"></label>
+        <label>Friction μ <output id="kMuV">0.05</output><input id="kMu" type="range" min="0" max="0.25" step="0.01" value="0.05"></label>
+        <div class="btnrow"><button id="kGo" class="btn primary">▶ Release Cart</button><button id="kReset" class="btn">↺ Reset</button></div>
+        <div class="ebar"><span>E<sub>p</sub></span><div class="bar"><i id="kEp" style="background:var(--cy)"></i></div><b id="kEpV">0</b></div>
+        <div class="ebar"><span>E<sub>k</sub></span><div class="bar"><i id="kEk" style="background:var(--gr)"></i></div><b id="kEkV">0</b></div>
+        <div class="ebar"><span>E<sub>th</sub></span><div class="bar"><i id="kEth" style="background:var(--rd)"></i></div><b id="kEthV">0</b></div>
+        <dl class="stats">
+          <dt>Speed</dt><dd id="kV">0 m/s</dd>
+          <dt>Track force</dt><dd id="kG">1.0 g</dd>
+          <dt>Cart mass</dt><dd>500 kg</dd>
+        </dl>
+        <div class="check" id="kCheck">—</div>
+        <div class="formula">E₀ = m·g·h = E<sub>p</sub> + E<sub>k</sub> + E<sub>th</sub><br>top of loop: v² ≥ g·R<br>no friction ⇒ h ≥ 2.5·R</div>
+      </aside>
+      <div class="stage"><canvas id="kCanvas" width="960" height="480"></canvas><div class="banner" id="kBanner"></div></div>
+    </div>
+  </section>
+
+  <!-- ===== Slide 3 · Optics ===== -->
+  <section class="slide" id="s-optics" data-geo="gem" data-title="Optics Lab">
+    <div class="shead"><span class="tag">Optics</span><h2>Prism &amp; Ray-Tracing Lab</h2></div>
+    <p class="sub">The laser enters the glass prism, refracts by Snell's law (n₁·sin θ₁ = n₂·sin θ₂), then bounces off your mirror. Steer it onto the sensor!</p>
+    <div class="lab">
+      <aside class="panel controls">
+        <label>Glass index n <output id="oNV">1.20</output><input id="oN" type="range" min="1.2" max="1.5" step="0.005" value="1.2"></label>
+        <label>Mirror angle <output id="oAV">0°</output><input id="oA" type="range" min="-60" max="60" step="0.5" value="0"></label>
+        <div class="btnrow"><button id="oPulse" class="btn primary">⚡ Emit Laser Pulse</button><button id="oNew" class="btn">🔄 New Sensor</button><button id="oHint" class="btn">💡 Hint</button></div>
+        <dl class="stats">
+          <dt>Incidence θ₁ (air→glass)</dt><dd id="oI1">—</dd>
+          <dt>Refraction θ₂</dt><dd id="oR1">—</dd>
+          <dt>Exit angle</dt><dd id="oI2">—</dd>
+          <dt>Deviation from start</dt><dd id="oDev">—</dd>
+          <dt>Sensor</dt><dd id="oState">searching…</dd>
+          <dt>Level</dt><dd id="oLevel">1</dd>
+        </dl>
+        <div class="check" id="oMsg">Raise n until the beam reaches the mirror, then rotate the mirror toward the sensor.</div>
+        <div class="formula">n₁·sinθ₁ = n₂·sinθ₂<br>reflection: θ<sub>in</sub> = θ<sub>out</sub><br>TIR when sinθ₂ &gt; 1</div>
+      </aside>
+      <div class="stage"><canvas id="oCanvas" width="900" height="520"></canvas><div class="banner" id="oBanner"></div></div>
+    </div>
+  </section>
+
+  <!-- ===== Slide 4 · Space + TPS ===== -->
+  <section class="slide" id="s-space" data-geo="rocket" data-title="Space Physics">
+    <div class="shead"><span class="tag">Space Physics</span><h2>Orbits &amp; Think-Pair-Share</h2></div>
+    <div class="two">
+      <div class="panel">
+        <h3 style="margin-top:0">Falling… and missing the ground</h3>
+        <p class="sub">An orbit is a projectile moving so fast that the planet's surface curves away as fast as the object falls. Newton's cannon, scaled up to space.</p>
+        <div class="facts">
+          <div class="fact"><b>7.7 km/s</b><span>ISS orbital speed</span></div>
+          <div class="fact"><b>92 min</b><span>one orbit</span></div>
+          <div class="fact"><b>≈ 90 %</b><span>surface gravity at 400 km</span></div>
+          <div class="fact"><b>11.2 km/s</b><span>Earth escape speed</span></div>
+        </div>
+        <div class="formula">v<sub>orbit</sub> = √(G·M / r)<br>v<sub>escape</sub> = √(2·G·M / r) = √2 · v<sub>orbit</sub></div>
+        <p class="sub" style="margin-top:12px">Link back to the Cannon Lab: crank velocity on the Moon and watch ranges explode — that is the same physics bending toward an orbit.</p>
+      </div>
+      <div class="panel">
+        <h3 style="margin-top:0">Think · Pair · Share</h3>
+        <p><b>Prompt:</b> At 400 km altitude gravity is still about 90 % as strong as on the ground. So why do astronauts on the ISS float? And what would happen if the station suddenly stopped moving sideways?</p>
+        <div class="timer">
+          <svg class="ring" viewBox="0 0 120 120" role="timer" aria-label="Countdown timer">
+            <circle class="ring-bg" cx="60" cy="60" r="52"/>
+            <circle id="tRing" class="ring-fg" cx="60" cy="60" r="52" transform="rotate(-90 60 60)"/>
+            <text id="tText" x="60" y="58" text-anchor="middle" dominant-baseline="central">1:00</text>
+            <text id="tPhase" x="60" y="80" text-anchor="middle">READY</text>
+          </svg>
+          <div class="btnrow">
+            <button id="tStart" class="btn primary">▶ Start</button>
+            <button id="tReset" class="btn">↺ Reset</button>
+            <button class="btn" data-preset="60">60 s</button>
+            <button class="btn" data-preset="120">120 s</button>
+          </div>
+        </div>
+        <details>
+          <summary>Show sample answers</summary>
+          <p><b>Think:</b> Astronauts and the station fall together, so nothing pushes on them — weightlessness is free-fall, not zero gravity.</p>
+          <p><b>Pair:</b> The sideways speed (~7.7 km/s) makes the ground curve away as fast as they fall, so they keep missing Earth.</p>
+          <p><b>Share:</b> With no sideways speed the station would fall almost straight down and re-enter the atmosphere.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Slide 5 · Quiz ===== -->
+  <section class="slide" id="s-quiz" data-geo="atom" data-title="Quiz Arena">
+    <div class="shead"><span class="tag">Quiz Arena</span><h2>Live Physics Showdown</h2></div>
+    <div class="lab">
+      <div class="panel" id="qBody" aria-live="polite"></div>
+      <aside class="panel">
+        <h3 style="margin:0 0 6px">🏆 Leaderboard</h3>
+        <input class="name" id="qName" maxlength="14" placeholder="Your name" aria-label="Your name">
+        <ol class="lb" id="qLb"></ol>
+        <p class="sub" style="font-size:12px;margin-top:8px">Ranks use your total XP from every lab.</p>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<nav class="nav" aria-label="Slide navigation">
+  <button id="prev" class="btn" aria-label="Previous slide">←</button>
+  <div class="dots" id="dots"></div>
+  <span id="slideNum">1 / 6</span>
+  <button id="next" class="btn" aria-label="Next slide">→</button>
+</nav>
+<div id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+   PhysicsVerse — single-file interactive physics deck
+   Sections: Utils · Audio · Game/XP · 3D Background · Deck ·
+             Cannon · Coaster · Optics · Timer · Quiz · Main loop
+   ===================================================================== */
+
+/* ---------- Utils ---------- */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const rand  = (a, b) => a + Math.random() * (b - a);
+const TAU = Math.PI * 2, DEG = Math.PI / 180;
+const fmt = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : '—');
+
+function rr(ctx, x, y, w, h, r) {            // rounded-rect path helper
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+const Banner = {                              // popup banners over canvases
+  timers: new WeakMap(),
+  show(el, html, kind = '', ms = 1800) {
+    el.innerHTML = html; el.className = 'banner show ' + kind;
+    clearTimeout(this.timers.get(el));
+    this.timers.set(el, setTimeout(() => el.classList.remove('show'), ms));
+  }
+};
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+};
+
+/* ---------- Audio synthesizer (Web Audio API, no files) ---------- */
+const Sfx = (() => {
+  let ctx = null, master = null, muted = false;
+  function ensure() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      ctx = new AC(); master = ctx.createGain();
+      master.gain.value = muted ? 0 : 0.55; master.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return true;
+  }
+  function tone({ type = 'sine', f0 = 440, f1 = 0, dur = 0.2, vol = 0.25, delay = 0 }) {
+    if (!ensure()) return;
+    const t = ctx.currentTime + delay, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, t);
+    if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function noise({ dur = 0.4, vol = 0.4, f0 = 2000, f1 = 100, delay = 0 }) {
+    if (!ensure()) return;
+    const t = ctx.currentTime + delay, len = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const flt = ctx.createBiquadFilter(); flt.type = 'lowpass';
+    flt.frequency.setValueAtTime(f0, t); flt.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(flt); flt.connect(g); g.connect(master); src.start(t);
+  }
+  return {
+    fire()   { noise({ dur: .6, vol: .9, f0: 2600, f1: 70 }); tone({ f0: 160, f1: 38, dur: .45, vol: .8 }); },
+    hit()    { noise({ dur: .5, vol: .6, f0: 3500, f1: 200 });
+               [523, 659, 784, 1047].forEach((f, i) => tone({ type: 'square', f0: f, dur: .16, vol: .13, delay: .08 * i + .05 })); },
+    laser()  { tone({ type: 'sawtooth', f0: 1500, f1: 240, dur: .38, vol: .14 });
+               tone({ type: 'square', f0: 3000, f1: 700, dur: .28, vol: .05 }); },
+    sensor() { tone({ type: 'triangle', f0: 880, dur: .14, vol: .25 }); tone({ type: 'triangle', f0: 1320, dur: .3, vol: .25, delay: .12 }); },
+    correct(){ tone({ f0: 660, dur: .14, vol: .25 }); tone({ f0: 990, dur: .26, vol: .25, delay: .1 }); },
+    wrong()  { tone({ type: 'sawtooth', f0: 240, f1: 110, dur: .35, vol: .2 }); },
+    crash()  { noise({ dur: .8, vol: .8, f0: 1800, f1: 60 }); tone({ type: 'sawtooth', f0: 200, f1: 40, dur: .6, vol: .3 }); },
+    win()    { [523, 659, 784, 1047, 1319].forEach((f, i) => tone({ type: 'triangle', f0: f, dur: .22, vol: .22, delay: i * .09 })); },
+    click()  { tone({ f0: 900, f1: 600, dur: .06, vol: .1 }); },
+    tick()   { tone({ type: 'square', f0: 1200, dur: .04, vol: .05 }); },
+    alarm()  { for (let i = 0; i < 3; i++) tone({ type: 'square', f0: 880, dur: .16, vol: .18, delay: i * .25 }); },
+    setMuted(m) { muted = m; if (master) master.gain.value = m ? 0 : 0.55; },
+    get muted() { return muted; }
+  };
+})();
+$('#muteBtn').addEventListener('click', e => {
+  Sfx.setMuted(!Sfx.muted); e.currentTarget.textContent = Sfx.muted ? '🔇' : '🔊'; if (!Sfx.muted) Sfx.click();
+});
+
+/* ---------- XP / HUD ---------- */
+const RANKS = ['Cadet', 'Lab Assistant', 'Experimenter', 'Physicist', 'Professor', 'Nobel Laureate'];
+const Game = {
+  xp: 0, listeners: [], toastT: 0,
+  add(n, label) {
+    this.xp += n; this.render(); this.listeners.forEach(f => f());
+    const t = $('#toast'); t.textContent = `+${n} XP — ${label}`; t.classList.add('show');
+    clearTimeout(this.toastT); this.toastT = setTimeout(() => t.classList.remove('show'), 1800);
+  },
+  render() {
+    const lvl = Math.floor(this.xp / 250);
+    $('#rank').textContent = RANKS[Math.min(lvl, RANKS.length - 1)];
+    $('#xpFill').style.width = ((this.xp % 250) / 250 * 100) + '%';
+    $('#xpVal').textContent = this.xp;
+  }
+};
+
+/* ---------- 3D background (Three.js morphing wireframes) ---------- */
+const BG = (() => {
+  const api = { setGeo() {}, frame() {} };
+  if (typeof THREE === 'undefined') return api;          // CDN blocked → degrade gracefully
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas: $('#bg3d'), alpha: true, antialias: true }); }
+  catch (e) { return api; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100); camera.position.z = 8;
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const M = 480;                                          // every model = exactly M line segments
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+  function ring(out, { r = 1, n = 48, sx = 1, sy = 1, euler = [0, 0, 0], c = [0, 0, 0] }) {
+    const e = new THREE.Euler(euler[0], euler[1], euler[2]);
+    const P = i => { const a = i / n * TAU; return V(Math.cos(a) * r * sx, Math.sin(a) * r * sy, 0).applyEuler(e).add(V(...c)); };
+    for (let i = 0; i < n; i++) out.push([P(i), P(i + 1)]);
+  }
+  const seg = (out, a, b) => out.push([V(...a), V(...b)]);
+
+  const builders = {
+    atom() {                                              // nucleus + three tilted electron orbits
+      const o = [], P = Math.PI;
+      ring(o, { r: .4, n: 14 }); ring(o, { r: .4, n: 14, euler: [P / 2, 0, 0] }); ring(o, { r: .4, n: 14, euler: [0, P / 2, 0] });
+      for (let k = 0; k < 3; k++) ring(o, { r: 1, n: 56, sx: 2.7, sy: 1, euler: [0.55, 0, k * P / 3] });
+      return o;
+    },
+    gyro() {                                              // gimbal rings + spinning rotor
+      const o = [], P = Math.PI;
+      ring(o, { r: 2.6, n: 72 });
+      ring(o, { r: 2.15, n: 64, euler: [0, P / 2, 0] });
+      ring(o, { r: 1.7, n: 56, euler: [P / 2, 0, 0] });
+      ring(o, { r: .95, n: 32, euler: [P / 2, 0, 0] });
+      for (let k = 0; k < 8; k++) { const a = k / 8 * TAU; seg(o, [0, 0, 0], [Math.cos(a) * .95, 0, Math.sin(a) * .95]); }
+      seg(o, [0, -3, 0], [0, 3, 0]);
+      return o;
+    },
+    gem() {                                               // brilliant-cut gem
+      const o = [], gy = .25, gr = 2, ty = 1.3, tr = 1.05, py = -2.4, G = [], T = [];
+      for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; G.push([Math.cos(a) * gr, gy, Math.sin(a) * gr]); }
+      for (let j = 0; j < 6; j++)  { const a = j / 6 * TAU;  T.push([Math.cos(a) * tr, ty, Math.sin(a) * tr]); }
+      for (let i = 0; i < 12; i++) { seg(o, G[i], G[(i + 1) % 12]); seg(o, G[i], [0, py, 0]); }
+      for (let j = 0; j < 6; j++) { seg(o, T[j], T[(j + 1) % 6]); [-1, 0, 1].forEach(d => seg(o, T[j], G[(2 * j + d + 12) % 12])); }
+      for (let i = 0; i < 12; i += 2) { const a = i / 12 * TAU; seg(o, G[i], [Math.cos(a) * .7, -1, Math.sin(a) * .7]); }
+      return o;
+    },
+    rocket() {                                            // body, nose, fins, window, exhaust
+      const o = [], Y = V(0, 1, 0);
+      [-1.7, -.6, .4, 1.1].forEach(y => ring(o, { r: .72, n: 20, euler: [Math.PI / 2, 0, 0], c: [0, y, 0] }));
+      for (let k = 0; k < 10; k++) { const a = k / 10 * TAU, x = Math.cos(a) * .72, z = Math.sin(a) * .72; seg(o, [x, -1.7, z], [x, 1.1, z]); seg(o, [x, 1.1, z], [0, 2.8, 0]); }
+      ring(o, { r: .36, n: 16, euler: [Math.PI / 2, 0, 0], c: [0, 1.95, 0] });
+      ring(o, { r: .27, n: 16, c: [0, .3, .73] });
+      for (let f = 0; f < 3; f++) {
+        const rot = f * TAU / 3, pts = [V(.72, -.6, 0), V(1.8, -2.5, 0), V(.72, -1.7, 0)].map(p => p.applyAxisAngle(Y, rot));
+        for (let i = 0; i < 3; i++) o.push([pts[i], pts[(i + 1) % 3]]);
+      }
+      for (let k = 0; k < 4; k++) { const a = k / 4 * TAU; seg(o, [Math.cos(a) * .4, -1.7, Math.sin(a) * .4], [Math.cos(a) * .15, -3.1 - (k % 2) * .5, Math.sin(a) * .15]); }
+      return o;
+    }
+  };
+
+  function toArray(segs) {                                // pad (split longest) to M segments, sort for coherent morphs
+    const s = segs.map(([a, b]) => [a.clone(), b.clone()]);
+    while (s.length < M) {
+      let bi = 0, bl = -1;
+      s.forEach(([a, b], i) => { const l = a.distanceToSquared(b); if (l > bl) { bl = l; bi = i; } });
+      const [a, b] = s[bi], m = a.clone().add(b).multiplyScalar(.5);
+      s.splice(bi, 1, [a, m], [m.clone(), b]);
+    }
+    s.length = M;
+    s.sort((p, q) => {
+      const ap = Math.atan2(p[0].z + p[1].z, p[0].x + p[1].x), aq = Math.atan2(q[0].z + q[1].z, q[0].x + q[1].x);
+      return ap - aq || (p[0].y + p[1].y) - (q[0].y + q[1].y);
+    });
+    const arr = new Float32Array(M * 6);
+    s.forEach(([a, b], i) => arr.set([a.x, a.y, a.z, b.x, b.y, b.z], i * 6));
+    return arr;
+  }
+  const models = {}; Object.keys(builders).forEach(k => { models[k] = toArray(builders[k]()); });
+
+  const geom = new THREE.BufferGeometry();
+  const posAttr = new THREE.BufferAttribute(new Float32Array(models.atom), 3);
+  geom.setAttribute('position', posAttr);
+  const group = new THREE.Group();
+  group.add(new THREE.LineSegments(geom, new THREE.LineBasicMaterial({ color: 0x4cc9ff, transparent: true, opacity: 0.26 })));
+  group.add(new THREE.Points(geom, new THREE.PointsMaterial({ color: 0xff4fa3, size: 0.05, transparent: true, opacity: 0.45 })));
+  scene.add(group);
+
+  let from = new Float32Array(models.atom), to = models.atom, t = 1, current = 'atom', mx = 0, my = 0;
+  window.addEventListener('pointermove', e => { mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5; });
+  function resize() {
+    renderer.setSize(innerWidth, innerHeight, false);
+    camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+    group.scale.setScalar(innerWidth < 700 ? .7 : 1);
+  }
+  window.addEventListener('resize', resize); resize();
+
+  api.setGeo = name => {
+    if (!models[name] || name === current) return;
+    current = name; from.set(posAttr.array); to = models[name]; t = 0;
+  };
+  api.frame = dt => {
+    if (t < 1) {
+      t = Math.min(1, t + dt / 1.4);
+      const e = t * t * (3 - 2 * t), a = posAttr.array;
+      for (let i = 0; i < a.length; i++) a[i] = from[i] + (to[i] - from[i]) * e;
+      posAttr.needsUpdate = true;
+    }
+    group.rotation.y += dt * (reduce ? 0.03 : 0.22);
+    group.rotation.x += (my * 0.5 + 0.25 - group.rotation.x) * 0.04;
+    group.position.x += (mx * 0.8 - group.position.x) * 0.04;
+    renderer.render(scene, camera);
+  };
+  return api;
+})();
+
+/* ---------- Deck / navigation ---------- */
+const Deck = (() => {
+  const slides = $$('.slide'), dots = $('#dots'); let cur = -1;
+  slides.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.className = 'dot'; b.title = s.dataset.title; b.setAttribute('aria-label', 'Go to ' + s.dataset.title);
+    b.addEventListener('click', () => go(i)); dots.appendChild(b);
+  });
+  function go(i) {
+    i = clamp(i, 0, slides.length - 1); if (i === cur) return; cur = i;
+    slides.forEach((s, k) => { s.classList.toggle('active', k === i); s.classList.toggle('before', k < i); });
+    $$('.dot').forEach((d, k) => d.classList.toggle('on', k === i));
+    $('#prev').disabled = i === 0; $('#next').disabled = i === slides.length - 1;
+    $('#slideNum').textContent = `${i + 1} / ${slides.length}`;
+    slides[i].scrollTop = 0; BG.setGeo(slides[i].dataset.geo);
+  }
+  $('#prev').addEventListener('click', () => { Sfx.click(); go(cur - 1); });
+  $('#next').addEventListener('click', () => { Sfx.click(); go(cur + 1); });
+  document.addEventListener('click', e => { const t = e.target.closest('[data-go]'); if (t) { Sfx.click(); go(+t.dataset.go); } });
+  document.addEventListener('keydown', e => {
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if (['ArrowRight', 'PageDown'].includes(e.key)) go(cur + 1);
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) go(cur - 1);
+    else if (e.key === 'Home') go(0); else if (e.key === 'End') go(slides.length - 1);
+  });
+  return { go, get id() { return slides[cur] ? slides[cur].id : ''; } };
+})();
+
+/* =====================================================================
+   GAME 1 — Ballistic Cannon Lab (Canvas 2D)
+   Motion is constant-acceleration, so the path is an exact parabola:
+     x(t) = v·cosθ·t + ½·a_w·t²,  y(t) = v·sinθ·t − ½·g·t²,  a_w = 0.02·wind·g
+   ===================================================================== */
+const Cannon = (() => {
+  const cv = $('#cCanvas'), ctx = cv.getContext('2d');
+  const el = { ang: $('#cAng'), vel: $('#cVel'), wind: $('#cWind'), grav: $('#cGrav'), fire: $('#cFire'), nw: $('#cNew'), ban: $('#cBanner') };
+  const GRAV = { earth: 9.81, moon: 1.62, mars: 3.71, jupiter: 24.79 };
+  const GCOL = { earth: ['#14301f', '#2fbf71'], moon: ['#23262e', '#aab0bd'], mars: ['#34170f', '#e0643b'], jupiter: ['#35250f', '#e3a857'] };
+  let target = 150, targetDown = false, fl = null, parts = [], recoil = 0, hits = 0, shots = 0;
+
+  const P = () => ({ a: +el.ang.value * DEG, v: +el.vel.value, w: +el.wind.value, g: GRAV[el.grav.value] });
+  const pos = (p, t) => ({ x: p.v * Math.cos(p.a) * t + 0.5 * 0.02 * p.w * p.g * t * t, y: p.v * Math.sin(p.a) * t - 0.5 * p.g * t * t });
+  function info(p) {
+    const T = 2 * p.v * Math.sin(p.a) / p.g;
+    return { T, range: pos(p, T).x, apex: (p.v * Math.sin(p.a)) ** 2 / (2 * p.g) };
+  }
+  function makeView(p, inf) {                              // pick world window that frames path + target
+    let minX = 0, maxX = target;
+    for (let k = 0; k <= 60; k++) { const q = pos(p, inf.T * k / 60); minX = Math.min(minX, q.x); maxX = Math.max(maxX, q.x); }
+    const x0 = Math.min(0, minX * 1.05), W = Math.max(100, (Math.max(maxX * 1.08, target * 1.35) - x0), inf.apex * 2.6);
+    return { x0, W };
+  }
+  function newTarget() {
+    const g = GRAV[el.grav.value], rmax = Math.min(600, 80 * 80 / g * 0.95);
+    target = Math.max(40, Math.round(rand(0.15, 0.6) * rmax)); targetDown = false;
+  }
+  function burst(x, y, n, cols, speed) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(0, TAU), s = rand(.2, 1) * speed;
+      parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - speed * .2, life: rand(.5, 1.2), max: 1.2, c: cols[i % cols.length], r: rand(2, 5) });
+    }
+  }
+  function fire() {
+    if (fl) return;
+    Sfx.fire(); shots++;
+    const p = P(), inf = info(p);
+    fl = { p, inf, view: makeView(p, inf), t: 0, last: 0, ts: Math.max(1, inf.T / 3.2) };
+    recoil = 14;
+    const L = 60; burst(30 - fl.view.x0 * 0 + Math.cos(p.a) * L, cv.height - 62 - Math.sin(p.a) * L, 26, ['#ffd27a', '#ff7a3d', '#aab'], 220);
+  }
+  function landed(hit) {
+    const p = fl.p, end = pos(p, fl.inf.T), miss = Math.abs(end.x - target);
+    if (hit) {
+      hits++; targetDown = true; Sfx.hit(); Game.add(100, 'Direct hit!');
+      Banner.show(el.ban, '🎯 DIRECT HIT! +100 XP', '', 1500);
+      const ppm = (cv.width - 60) / fl.view.W;
+      burst(30 + (target - fl.view.x0) * ppm, cv.height - 60, 70, ['#ffd27a', '#ff4fa3', '#4cc9ff', '#fff'], 340);
+      setTimeout(() => { if (!fl) { newTarget(); } }, 1600);
+      fl.keepView = true;
+      setTimeout(() => { fl = null; newTarget(); }, 1500);
+    } else {
+      Banner.show(el.ban, `Missed by ${fmt(miss, 0)} m — adjust and retry`, 'info', 1700);
+      const ppm = (cv.width - 60) / fl.view.W;
+      burst(30 + (end.x - fl.view.x0) * ppm, cv.height - 52, 14, ['#8a7a66', '#b9a98f'], 120);
+      fl = null;
+    }
+  }
+  function frame(dt) {
+    if (fl && !fl.done) {
+      fl.t = Math.min(fl.inf.T, fl.t + dt * fl.ts);
+      const rHit = Math.max(6, fl.view.W * 0.022);
+      for (let tt = fl.last; tt <= fl.t + 1e-9 && !fl.done; tt += 0.02) {
+        const q = pos(fl.p, tt);
+        if (Math.hypot(q.x - target, Math.max(0, q.y)) <= rHit && !targetDown) { fl.done = true; landed(true); }
+      }
+      if (fl && !fl.done) { fl.last = fl.t; if (fl.t >= fl.inf.T) { fl.done = true; landed(false); } }
+    }
+    recoil = Math.max(0, recoil - dt * 50);
+    parts.forEach(q => { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 260 * dt; q.life -= dt; });
+    parts = parts.filter(q => q.life > 0);
+    render();
+  }
+  function render() {
+    const p = fl ? fl.p : P(), inf = fl ? fl.inf : info(p), V = fl ? fl.view : makeView(p, inf);
+    const w = cv.width, h = cv.height, gy = h - 52, ppm = (w - 60) / V.W;
+    const X = x => 30 + (x - V.x0) * ppm, Y = y => gy - y * ppm;
+    ctx.clearRect(0, 0, w, h);
+    const sg = ctx.createLinearGradient(0, 0, 0, gy); sg.addColorStop(0, 'rgba(6,12,32,.88)'); sg.addColorStop(1, 'rgba(22,40,86,.8)');
+    ctx.fillStyle = sg; ctx.fillRect(0, 0, w, gy);
+    // grid + distance labels
+    const step = [5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000].find(s => V.W / s <= 12) || 5000;
+    ctx.strokeStyle = 'rgba(120,190,255,.1)'; ctx.fillStyle = 'rgba(150,190,230,.75)'; ctx.font = '11px system-ui'; ctx.textAlign = 'center'; ctx.lineWidth = 1;
+    for (let x = Math.ceil(V.x0 / step) * step; x <= V.x0 + V.W; x += step) {
+      const px = X(x); ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, gy); ctx.stroke(); ctx.fillText(x + ' m', px, gy + 16);
+    }
+    for (let y = step; Y(y) > 6; y += step) { ctx.beginPath(); ctx.moveTo(0, Y(y)); ctx.lineTo(w, Y(y)); ctx.stroke(); }
+    // ground
+    const gc = GCOL[el.grav.value], gg = ctx.createLinearGradient(0, gy, 0, h);
+    gg.addColorStop(0, gc[1]); gg.addColorStop(.12, gc[0]); gg.addColorStop(1, '#05070e');
+    ctx.fillStyle = gg; ctx.fillRect(0, gy, w, h - gy);
+    // preview parabola
+    if (!fl) {
+      ctx.setLineDash([7, 6]); ctx.strokeStyle = 'rgba(76,201,255,.9)'; ctx.lineWidth = 2; ctx.beginPath();
+      for (let k = 0; k <= 90; k++) { const q = pos(p, inf.T * k / 90); k ? ctx.lineTo(X(q.x), Y(q.y)) : ctx.moveTo(X(q.x), Y(q.y)); }
+      ctx.stroke(); ctx.setLineDash([]);
+      const e = pos(p, inf.T); ctx.strokeStyle = '#4cc9ff'; ctx.beginPath(); ctx.moveTo(X(e.x) - 6, gy - 6); ctx.lineTo(X(e.x) + 6, gy + 6); ctx.moveTo(X(e.x) + 6, gy - 6); ctx.lineTo(X(e.x) - 6, gy + 6); ctx.stroke();
+    } else {                                              // flown trail
+      ctx.strokeStyle = 'rgba(255,200,71,.85)'; ctx.lineWidth = 3; ctx.beginPath();
+      for (let k = 0; k <= 60; k++) { const q = pos(p, fl.t * k / 60); k ? ctx.lineTo(X(q.x), Y(q.y)) : ctx.moveTo(X(q.x), Y(q.y)); }
+      ctx.stroke();
+    }
+    // target dome
+    const rH = Math.max(6, V.W * 0.022), tx = X(target), tr = rH * ppm;
+    ctx.globalAlpha = targetDown ? .35 : 1;
+    [[1, '#ff5470'], [.66, '#fff'], [.33, '#ff5470']].forEach(([s, c]) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(tx, gy, tr * s, Math.PI, 0); ctx.closePath(); ctx.fill(); });
+    ctx.globalAlpha = 1; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '12px system-ui'; ctx.fillText(`TARGET ${target} m`, tx, gy - tr - 8);
+    // cannon
+    const cx = X(0), cy = gy - 10;
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(-p.a); ctx.translate(-recoil, 0);
+    ctx.fillStyle = '#7d8cab'; rr(ctx, 0, -9, 60, 18, 5); ctx.fill(); ctx.fillStyle = '#4b587a'; ctx.fillRect(52, -11, 10, 22); ctx.restore();
+    ctx.fillStyle = '#2a3552'; ctx.strokeStyle = '#9fb3dd'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy + 4, 17, 0, TAU); ctx.fill(); ctx.stroke();
+    // projectile
+    if (fl && !fl.done) {
+      const q = pos(fl.p, fl.t), px = X(q.x), py = Y(q.y), gr = ctx.createRadialGradient(px, py, 1, px, py, 14);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(.4, '#ffc847'); gr.addColorStop(1, 'rgba(255,200,71,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(px, py, 14, 0, TAU); ctx.fill();
+    }
+    parts.forEach(q => { ctx.globalAlpha = clamp(q.life / q.max, 0, 1); ctx.fillStyle = q.c; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill(); });
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(200,220,255,.85)'; ctx.textAlign = 'left'; ctx.font = '12px system-ui';
+    ctx.fillText(`g = ${p.g} m/s²   wind ${p.w >= 0 ? '+' : ''}${p.w} m/s`, 12, 20);
+    // readouts
+    $('#cAngV').textContent = `${el.ang.value}°`; $('#cVelV').textContent = `${el.vel.value} m/s`; $('#cWindV').textContent = `${p.w >= 0 ? '+' : ''}${p.w} m/s`;
+    $('#cRange').textContent = fmt(inf.range, 0) + ' m'; $('#cApex').textContent = fmt(inf.apex, 0) + ' m';
+    $('#cTime').textContent = fmt(inf.T, 1) + ' s'; $('#cTarget').textContent = target + ' m'; $('#cScore').textContent = `${hits} / ${shots}`;
+  }
+  el.fire.addEventListener('click', fire);
+  el.nw.addEventListener('click', () => { if (!fl) { newTarget(); Sfx.click(); } });
+  el.grav.addEventListener('change', () => { if (!fl) newTarget(); Sfx.click(); });
+  window.addEventListener('keydown', e => { if (e.code === 'Space' && Deck.id === 's-cannon' && !/^(INPUT|SELECT|BUTTON)$/.test(e.target.tagName)) { e.preventDefault(); fire(); } });
+  newTarget();
+  return { frame };
+})();
+
+/* =====================================================================
+   GAME 2 — Roller-Coaster Simulator (Canvas 2D)
+   Path = smooth cosine ramp → flat → circular loop → run-out.
+   With w = v² and arclength s, tangent angle θ, curvature κ:
+       normal force/m   N = g·cosθ + w·κ        (κ=1/R in the loop)
+       dw/ds = −2·( g·sinθ + μ·max(N,0) )
+   Derail when N < 0 (top of loop ⇒ v² < g·R). E_th = E₀ − E_p − E_k.
+   ===================================================================== */
+const Coaster = (() => {
+  const cv = $('#kCanvas'), ctx = cv.getContext('2d'), g = 9.81, m = 500, TS = 2.2;
+  const el = { h: $('#kH'), R: $('#kR'), mu: $('#kMu'), go: $('#kGo'), reset: $('#kReset'), ban: $('#kBanner'), chk: $('#kCheck') };
+  let T = null, ride = null; const rewarded = new Set();
+
+  function build(h, R, mu) {
+    const Lx = 30 + h * 1.3, u0 = 0.2, x0 = u0 * Lx, A = h / ((1 + Math.cos(Math.PI * u0)) / 2);
+    const pts = [], dx = 0.1;
+    const add = (x, y, th, k, seg) => pts.push({ x, y, th, k, seg, s: 0, N: g });
+    for (let x = x0; x <= Lx + 1e-9; x += dx) {
+      const u = x / Lx, yp = -A * Math.PI / (2 * Lx) * Math.sin(Math.PI * u), ypp = -A * Math.PI * Math.PI / (2 * Lx * Lx) * Math.cos(Math.PI * u);
+      add(x, A * (1 + Math.cos(Math.PI * u)) / 2, Math.atan(yp), ypp / Math.pow(1 + yp * yp, 1.5), 'ramp');
+    }
+    const gap = R + 6; for (let x = Lx + dx; x <= Lx + gap + 1e-9; x += dx) add(x, 0, 0, 0, 'flat');
+    const xc = Lx + gap, n = Math.ceil(TAU * R / 0.1), loopStart = pts.length;
+    for (let i = 1; i <= n; i++) { const phi = i / n * TAU; add(xc + R * Math.sin(phi), R - R * Math.cos(phi), phi, 1 / R, 'loop'); }
+    const loopEnd = pts.length - 1, run = 45;
+    for (let x = xc + dx; x <= xc + run; x += dx) add(x, 0, 0, 0, 'run');
+    for (let i = 1; i < pts.length; i++) pts[i].s = pts[i - 1].s + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+
+    const w = new Float32Array(pts.length); let derail = -1, stall = -1;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p = pts[i], ds = pts[i + 1].s - p.s, N = g * Math.cos(p.th) + w[i] * p.k; p.N = N;
+      if (p.seg === 'loop' && N < 0 && derail < 0) derail = i;
+      const nw = w[i] - 2 * (g * Math.sin(p.th) + mu * Math.max(0, N)) * ds;
+      if (nw <= 0 && stall < 0) stall = i;
+      w[i + 1] = Math.max(0, nw);
+    }
+    const last = pts.length - 1;
+    let stopAt = Math.min(derail >= 0 ? derail : last, stall >= 0 ? stall : last);
+    let outcome = 'success';
+    if (derail >= 0 && stopAt === derail) outcome = 'derail';
+    else if (stall >= 0 && stopAt === stall && stall < loopEnd) outcome = 'stall';
+    const iTop = loopStart + Math.round(n / 2) - 1;
+    const sc = Math.min((cv.width - 60) / (xc + run - x0 + 12), (cv.height - 80) / (Math.max(h, 2 * R) + 6));
+    return { pts, w, h, R, mu, Lx, x0, A, xc, run, loopStart, loopEnd, derail, stall, stopAt, outcome, iTop, sc, E0: m * g * pts[0].y };
+  }
+  function reset() {
+    T = build(+el.h.value, +el.R.value, +el.mu.value);
+    ride = { phase: 'idle', i: 0, s: 0, px: 0, py: 0, vx: 0, vy: 0, rot: 0, th: T.pts[0].th };
+    el.go.textContent = '▶ Release Cart'; el.ban.classList.remove('show');
+    const top = T.iTop <= T.stopAt || T.outcome !== 'derail' ? T.w[T.iTop] : T.w[T.iTop];
+    const need = g * T.R, stalledBefore = T.stall >= 0 && T.stall < T.iTop;
+    const ok = !stalledBefore && top >= need;
+    el.chk.className = 'check ' + (ok ? 'ok' : 'bad');
+    el.chk.innerHTML = stalledBefore ? `⚠ Cart runs out of energy before the loop top.<br>E-loss to friction is too large.`
+      : `Loop-top check: v² = ${fmt(top, 1)} ${ok ? '≥' : '<'} g·R = ${fmt(need, 1)} → ${ok ? 'safe ✔' : 'derails ✘'}<br>Frictionless minimum height: ${fmt(2.5 * T.R, 1)} m`;
+  }
+  function release() {
+    if (ride.phase === 'run' || ride.phase === 'fall') return;
+    reset(); ride.phase = 'run'; ride.i = 1; ride.s = T.pts[1].s; el.go.textContent = '▶ Running…'; Sfx.click();
+  }
+  function finish() {
+    const pt = T.pts[T.stopAt];
+    if (T.outcome === 'derail') {
+      const v = Math.sqrt(Math.max(0, T.w[T.stopAt]));
+      Object.assign(ride, { phase: 'fall', px: pt.x, py: pt.y, vx: v * Math.cos(pt.th), vy: v * Math.sin(pt.th), rot: pt.th });
+      Sfx.crash(); Banner.show(el.ban, '💥 Cart Derailed!', 'bad', 2600);
+    } else if (T.outcome === 'stall') {
+      ride.phase = 'done'; Sfx.wrong(); Banner.show(el.ban, '⚠ Out of energy — cart rolls back', 'info', 2600);
+    } else {
+      ride.phase = 'done'; Sfx.win(); Banner.show(el.ban, '✅ Loop cleared! Ride complete', '', 2400);
+      const key = `${T.h}|${T.R}|${T.mu}`;
+      if (!rewarded.has(key)) { rewarded.add(key); Game.add(150, 'Coaster loop cleared'); }
+    }
+    el.go.textContent = '▶ Release Cart';
+  }
+  function frame(dt) {
+    if (ride.phase === 'run') {
+      const v = Math.sqrt(T.w[ride.i]); ride.s += Math.max(v, 0.6) * dt * TS;
+      while (ride.i < T.stopAt && T.pts[ride.i + 1].s <= ride.s) ride.i++;
+      if (ride.i >= T.stopAt) { ride.i = T.stopAt; finish(); }
+    } else if (ride.phase === 'fall') {
+      const k = dt * TS; ride.vy -= g * k; ride.px += ride.vx * k; ride.py += ride.vy * k; ride.rot += k * 4;
+      if (ride.py <= 0.9) { ride.py = 0.9; ride.phase = 'done'; }
+    }
+    render();
+  }
+  function render() {
+    const w = cv.width, h = cv.height, sc = T.sc, gy = h - 40;
+    const X = x => 30 + (x - (T.x0 - 6)) * sc, Y = y => gy - y * sc;
+    ctx.clearRect(0, 0, w, h);
+    const sg = ctx.createLinearGradient(0, 0, 0, gy); sg.addColorStop(0, 'rgba(6,12,32,.9)'); sg.addColorStop(1, 'rgba(26,36,80,.8)');
+    ctx.fillStyle = sg; ctx.fillRect(0, 0, w, gy);
+    ctx.fillStyle = '#10182c'; ctx.fillRect(0, gy, w, h - gy); ctx.strokeStyle = '#2f3f66'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(w, gy); ctx.stroke();
+    // supports
+    ctx.strokeStyle = 'rgba(130,150,190,.35)'; ctx.lineWidth = 2;
+    for (let i = 0; i < T.pts.length; i += 90) { const p = T.pts[i]; if (p.seg !== 'ramp' || p.y < 1) continue; ctx.beginPath(); ctx.moveTo(X(p.x), Y(p.y)); ctx.lineTo(X(p.x), gy); ctx.stroke(); }
+    // start-height marker
+    ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(255,200,71,.5)'; ctx.beginPath(); ctx.moveTo(X(T.x0 - 6), Y(T.h)); ctx.lineTo(X(T.x0 + T.Lx * .4), Y(T.h)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,200,71,.9)'; ctx.font = '12px system-ui'; ctx.textAlign = 'left'; ctx.fillText(`h = ${T.h} m`, X(T.x0 - 6) + 4, Y(T.h) - 6);
+    // track
+    const stroke = (from, to, col, wd) => { ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.beginPath(); for (let i = from; i <= to; i += 3) { const p = T.pts[i]; i === from ? ctx.moveTo(X(p.x), Y(p.y)) : ctx.lineTo(X(p.x), Y(p.y)); } ctx.stroke(); };
+    stroke(0, T.loopStart - 1, '#35557f', 8); stroke(0, T.loopStart - 1, '#4cc9ff', 3);
+    stroke(T.loopStart, T.loopEnd, '#6a2a58', 8); stroke(T.loopStart, T.loopEnd, '#ff4fa3', 3);
+    stroke(T.loopEnd, T.pts.length - 1, '#35557f', 8); stroke(T.loopEnd, T.pts.length - 1, '#4cc9ff', 3);
+    // loop-top marker
+    const tp = T.pts[T.iTop]; ctx.fillStyle = '#ff4fa3'; ctx.font = '11px system-ui'; ctx.textAlign = 'center'; ctx.fillText('top: v² ≥ gR', X(tp.x), Y(tp.y) - 12);
+    // cart
+    let cx, cy, th;
+    if (ride.phase === 'fall' || (ride.phase === 'done' && T.outcome === 'derail')) { cx = ride.px; cy = ride.py; th = ride.rot; }
+    else { const p = T.pts[ride.i]; cx = p.x; cy = p.y; th = p.th; }
+    ctx.save(); ctx.translate(X(cx), Y(cy)); ctx.rotate(-th);
+    const cw = 3.4 * sc, ch = 1.7 * sc;
+    ctx.fillStyle = '#ff5470'; rr(ctx, -cw / 2, -ch - 2, cw, ch, 4); ctx.fill();
+    ctx.fillStyle = '#ffd1d9'; ctx.fillRect(-cw / 4, -ch - 2 + ch * .15, cw / 2, ch * .3);
+    ctx.fillStyle = '#10182c'; [-cw / 3, cw / 3].forEach(wx => { ctx.beginPath(); ctx.arc(wx, -2, Math.max(3, .35 * sc), 0, TAU); ctx.fill(); });
+    ctx.restore();
+    // energy readouts
+    const i = ride.phase === 'fall' ? T.stopAt : ride.i, p = T.pts[i], wv = T.w[i];
+    const Ep = m * g * (ride.phase === 'fall' ? Math.max(0, ride.py) : p.y), Ek = ride.phase === 'fall' ? .5 * m * (ride.vx ** 2 + ride.vy ** 2) : .5 * m * wv;
+    const Eth = Math.max(0, T.E0 - Ep - Ek), E0 = T.E0;
+    [['Ep', Ep], ['Ek', Ek], ['Eth', Eth]].forEach(([k, e]) => { $('#k' + k).style.width = clamp(e / E0 * 100, 0, 100) + '%'; $('#k' + k + 'V').textContent = fmt(e / 1000, 1) + ' kJ'; });
+    $('#kV').textContent = fmt(Math.sqrt(wv), 1) + ' m/s'; $('#kG').textContent = fmt(clamp(p.N / g, 0, 12), 1) + ' g';
+    $('#kHV').textContent = el.h.value + ' m'; $('#kRV').textContent = el.R.value + ' m'; $('#kMuV').textContent = (+el.mu.value).toFixed(2);
+  }
+  ['h', 'R', 'mu'].forEach(k => el[k].addEventListener('input', () => { if (ride.phase !== 'run' && ride.phase !== 'fall') reset(); }));
+  el.go.addEventListener('click', release);
+  el.reset.addEventListener('click', () => { reset(); Sfx.click(); });
+  reset();
+  return { frame };
+})();
+
+/* =====================================================================
+   GAME 3 — Optics & Ray-Tracing Prism Lab (Canvas 2D)
+   Laser → equilateral glass prism (Snell refraction / TIR) → mirror → sensor.
+   A new sensor is placed on a ray that is guaranteed solvable.
+   ===================================================================== */
+const Optics = (() => {
+  const cv = $('#oCanvas'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+  const el = { n: $('#oN'), a: $('#oA'), pulse: $('#oPulse'), nw: $('#oNew'), hint: $('#oHint'), ban: $('#oBanner'), msg: $('#oMsg') };
+  const LASER = { x: 70, y: 215 }, MC = { x: 650, y: 400 }, MHALF = 70, SR = 16;
+  const PR = [{ x: 320, y: 140 }, { x: 406.6, y: 290 }, { x: 233.4, y: 290 }];
+  let sensor = { x: 800, y: 120 }, level = { n: 1, sol: null, done: false }, pulse = null;
+
+  const mirrorSeg = a => { const c = Math.cos(a * DEG), s = Math.sin(a * DEG);
+    return { a: { x: MC.x - c * MHALF, y: MC.y - s * MHALF }, b: { x: MC.x + c * MHALF, y: MC.y + s * MHALF }, n: { x: -s, y: c } }; };
+  function segHit(o, d, a, b) {
+    const sx = b.x - a.x, sy = b.y - a.y, den = d.x * sy - d.y * sx; if (Math.abs(den) < 1e-9) return null;
+    const ox = a.x - o.x, oy = a.y - o.y, t = (ox * sy - oy * sx) / den, u = (ox * d.y - oy * d.x) / den;
+    return (t > 1e-3 && u >= 0 && u <= 1) ? t : null;
+  }
+  function circleHit(o, d, c, r) {
+    const fx = o.x - c.x, fy = o.y - c.y, b = fx * d.x + fy * d.y, cc = fx * fx + fy * fy - r * r, disc = b * b - cc;
+    if (disc < 0) return null; const s = Math.sqrt(disc), t1 = -b - s, t2 = -b + s;
+    return t1 > 1e-3 ? t1 : (t2 > 1e-3 ? t2 : null);
+  }
+  function trace(nG, aDeg, sens) {
+    let o = { ...LASER }, d = { x: 1, y: 0 }, inside = false, hitS = false, hitM = false;
+    const pts = [{ ...o }], norms = [], info = { tir: false, refr: [] }, mir = mirrorSeg(aDeg);
+    for (let k = 0; k < 12; k++) {
+      let best = null;
+      for (let e = 0; e < 3; e++) { const t = segHit(o, d, PR[e], PR[(e + 1) % 3]); if (t !== null && (!best || t < best.t)) best = { t, type: 'prism', e }; }
+      const tm = segHit(o, d, mir.a, mir.b); if (tm !== null && (!best || tm < best.t)) best = { t: tm, type: 'mirror' };
+      if (sens) { const ts = circleHit(o, d, sens, SR); if (ts !== null && (!best || ts < best.t)) best = { t: ts, type: 'sensor' }; }
+      if (!best) { pts.push({ x: o.x + d.x * 2500, y: o.y + d.y * 2500 }); break; }
+      const Pt = { x: o.x + d.x * best.t, y: o.y + d.y * best.t }; pts.push(Pt);
+      if (best.type === 'sensor') { hitS = true; break; }
+      if (best.type === 'mirror') {
+        hitM = true; const dn = d.x * mir.n.x + d.y * mir.n.y; d = { x: d.x - 2 * dn * mir.n.x, y: d.y - 2 * dn * mir.n.y };
+      } else {
+        const A = PR[best.e], B = PR[(best.e + 1) % 3]; let nx = -(B.y - A.y), ny = B.x - A.x; const L = Math.hypot(nx, ny); nx /= L; ny /= L;
+        if (nx * d.x + ny * d.y > 0) { nx = -nx; ny = -ny; }
+        const cosi = -(nx * d.x + ny * d.y), n1 = inside ? nG : 1, n2 = inside ? 1 : nG, r = n1 / n2, s2 = r * r * (1 - cosi * cosi);
+        norms.push({ x: Pt.x, y: Pt.y, nx, ny });
+        const ti = Math.acos(clamp(cosi, 0, 1)) / DEG;
+        if (s2 > 1) { info.tir = true; info.refr.push({ i: ti, r: NaN }); d = { x: d.x + 2 * cosi * nx, y: d.y + 2 * cosi * ny }; }
+        else { const ct = Math.sqrt(1 - s2); info.refr.push({ i: ti, r: Math.asin(Math.sqrt(s2)) / DEG });
+          d = { x: r * d.x + (r * cosi - ct) * nx, y: r * d.y + (r * cosi - ct) * ny }; inside = !inside; }
+      }
+      o = Pt;
+    }
+    info.dev = Math.atan2(d.y, d.x) / DEG;
+    return { pts, norms, hitSensor: hitS, hitMirror: hitM, info };
+  }
+  function newLevel(first) {
+    for (let tries = 0; tries < 500; tries++) {
+      const n = +rand(1.25, 1.45).toFixed(2), a = Math.round(rand(-35, 35)), r = trace(n, a, null);
+      if (!r.hitMirror || r.pts.length !== 5) continue;
+      const Pm = r.pts[3], E = r.pts[4], L = Math.hypot(E.x - Pm.x, E.y - Pm.y), d = { x: (E.x - Pm.x) / L, y: (E.y - Pm.y) / L };
+      const tx = d.x > 0 ? (W - 40 - Pm.x) / d.x : d.x < 0 ? (40 - Pm.x) / d.x : Infinity;
+      const ty = d.y > 0 ? (H - 40 - Pm.y) / d.y : d.y < 0 ? (40 - Pm.y) / d.y : Infinity;
+      const tMax = Math.min(tx, ty); if (tMax < 170) continue;
+      const t = Math.max(120, rand(.55, .95) * tMax);
+      sensor = { x: Pm.x + d.x * t, y: Pm.y + d.y * t }; level.sol = { n, a }; break;
+    }
+    if (!first) level.n++;
+    level.done = false; el.n.value = 1.2; el.a.value = 0; el.ban.classList.remove('show');
+    el.msg.className = 'check'; el.msg.textContent = 'Raise n until the beam reaches the mirror, then rotate the mirror toward the sensor.';
+  }
+  function pulseGo() {
+    Sfx.laser(); const r = trace(+el.n.value, +el.a.value, sensor); let tot = 0; const cum = [0];
+    for (let i = 1; i < r.pts.length; i++) { tot += Math.hypot(r.pts[i].x - r.pts[i - 1].x, r.pts[i].y - r.pts[i - 1].y); cum.push(tot); }
+    pulse = { t: 0, pts: r.pts, cum, tot: Math.min(tot, 1400) };
+  }
+  function frame(dt) {
+    const nG = +el.n.value, aD = +el.a.value, r = trace(nG, aD, sensor), inf = r.info;
+    if (r.hitSensor && !level.done) {
+      level.done = true; Sfx.sensor(); Game.add(100, 'Sensor locked!');
+      Banner.show(el.ban, '🟢 SENSOR LOCKED! +100 XP', '', 2300);
+      el.msg.className = 'check ok'; el.msg.textContent = `Solved with n = ${nG.toFixed(3)}, mirror = ${aD}°. A new sensor is on its way…`;
+      setTimeout(() => { if (level.done) newLevel(false); }, 2800);
+    }
+    if (pulse) { pulse.t += dt / 0.9; if (pulse.t >= 1) pulse = null; }
+    draw(r, nG, aD);
+    const f = inf.refr;
+    $('#oNV').textContent = nG.toFixed(2); $('#oAV').textContent = `${aD}°`;
+    $('#oI1').textContent = f[0] ? fmt(f[0].i) + '°' : '—'; $('#oR1').textContent = f[0] ? fmt(f[0].r) + '°' : '—';
+    $('#oI2').textContent = f[1] ? (isNaN(f[1].r) ? 'TIR!' : fmt(f[1].r) + '°') : '—'; $('#oDev').textContent = fmt(inf.dev) + '°';
+    $('#oState').textContent = r.hitSensor ? '🟢 locked' : (r.hitMirror ? 'beam on mirror' : 'searching…'); $('#oLevel').textContent = level.n;
+  }
+  function draw(r, nG, aD) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(6,12,30,.85)'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(120,190,255,.07)'; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    // prism
+    const pg = ctx.createLinearGradient(PR[2].x, PR[0].y, PR[1].x, PR[1].y); pg.addColorStop(0, 'rgba(160,220,255,.28)'); pg.addColorStop(1, 'rgba(100,140,255,.12)');
+    ctx.beginPath(); ctx.moveTo(PR[0].x, PR[0].y); ctx.lineTo(PR[1].x, PR[1].y); ctx.lineTo(PR[2].x, PR[2].y); ctx.closePath();
+    ctx.fillStyle = pg; ctx.fill(); ctx.strokeStyle = 'rgba(190,235,255,.95)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = 'rgba(190,235,255,.8)'; ctx.font = '13px system-ui'; ctx.textAlign = 'center'; ctx.fillText(`glass  n = ${nG.toFixed(2)}`, 320, 318);
+    // normals
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1;
+    r.norms.forEach(q => { ctx.beginPath(); ctx.moveTo(q.x - q.nx * 40, q.y - q.ny * 40); ctx.lineTo(q.x + q.nx * 40, q.y + q.ny * 40); ctx.stroke(); }); ctx.setLineDash([]);
+    // mirror
+    const mir = mirrorSeg(aD);
+    ctx.strokeStyle = 'rgba(255,255,255,.28)'; ctx.lineWidth = 1.5;
+    for (let k = 0; k <= 10; k++) { const t = k / 10, x = mir.a.x + (mir.b.x - mir.a.x) * t, y = mir.a.y + (mir.b.y - mir.a.y) * t; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + mir.n.x * 12, y + mir.n.y * 12); ctx.stroke(); }
+    ctx.strokeStyle = '#dfe9ff'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(mir.a.x, mir.a.y); ctx.lineTo(mir.b.x, mir.b.y); ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.fillStyle = 'rgba(200,220,255,.8)'; ctx.fillText('mirror', MC.x, MC.y + 52);
+    // laser emitter
+    ctx.fillStyle = '#4b587a'; rr(ctx, 20, LASER.y - 14, 50, 28, 6); ctx.fill(); ctx.fillStyle = '#ff3b6b'; ctx.beginPath(); ctx.arc(70, LASER.y, 5, 0, TAU); ctx.fill();
+    // sensor
+    const lit = r.hitSensor, sg = ctx.createRadialGradient(sensor.x, sensor.y, 2, sensor.x, sensor.y, lit ? 50 : 28);
+    sg.addColorStop(0, lit ? 'rgba(66,245,161,.9)' : 'rgba(255,84,112,.5)'); sg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sensor.x, sensor.y, lit ? 50 : 28, 0, TAU); ctx.fill();
+    ctx.strokeStyle = lit ? '#42f5a1' : '#ff5470'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sensor.x, sensor.y, 20, 0, TAU); ctx.stroke();
+    ctx.fillStyle = lit ? '#42f5a1' : '#8a5060'; ctx.beginPath(); ctx.arc(sensor.x, sensor.y, 7, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#c8d8f5'; ctx.fillText('SENSOR', sensor.x, sensor.y + 38);
+    // beam (glow + core)
+    ctx.globalCompositeOperation = 'lighter'; ctx.lineJoin = 'round';
+    [[14, .10], [7, .22]].forEach(([wd, al]) => { ctx.strokeStyle = `rgba(255,59,107,${al})`; ctx.lineWidth = wd; ctx.beginPath(); r.pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); });
+    ctx.strokeStyle = '#ffd6e0'; ctx.lineWidth = 2; ctx.beginPath(); r.pts.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+    // travelling pulse
+    if (pulse) {
+      const dist = pulse.t * pulse.tot; let i = 1; while (i < pulse.cum.length - 1 && pulse.cum[i] < dist) i++;
+      const f = (dist - pulse.cum[i - 1]) / Math.max(1e-6, pulse.cum[i] - pulse.cum[i - 1]), a = pulse.pts[i - 1], b = pulse.pts[i];
+      const px = a.x + (b.x - a.x) * f, py = a.y + (b.y - a.y) * f, gr = ctx.createRadialGradient(px, py, 0, px, py, 16);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,59,107,0)'); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(px, py, 16, 0, TAU); ctx.fill();
+    }
+    if (r.info.tir) { ctx.fillStyle = '#ffc847'; ctx.textAlign = 'left'; ctx.fillText('Total internal reflection inside the glass!', 14, 24); }
+  }
+  el.pulse.addEventListener('click', pulseGo);
+  el.nw.addEventListener('click', () => { Sfx.click(); newLevel(false); });
+  el.hint.addEventListener('click', () => {
+    Sfx.click(); const s = level.sol; if (!s) return;
+    const n5 = (Math.round(s.n / 0.05) * 0.05).toFixed(2), a5 = Math.round(s.a / 5) * 5;
+    el.msg.className = 'check'; el.msg.innerHTML = `💡 Try n ≈ <b>${n5}</b> and mirror ≈ <b>${a5}°</b>, then fine-tune until the sensor lights up.`;
+  });
+  newLevel(true);
+  return { frame };
+})();
+
+/* ---------- Think-Pair-Share timer (animated SVG ring) ---------- */
+(() => {
+  const ring = $('#tRing'), txt = $('#tText'), phase = $('#tPhase'), start = $('#tStart'), C = 2 * Math.PI * 52;
+  ring.style.strokeDasharray = C;
+  let total = 60, rem = 60, running = false, last = 0, id = 0, lastWhole = 60;
+  function draw() {
+    ring.style.strokeDashoffset = C * (1 - rem / total);
+    const s = Math.ceil(rem); txt.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    const f = rem / total;
+    if (!running && rem === total) phase.textContent = 'READY';
+    else if (rem <= 0) phase.textContent = 'SHARE!';
+    else phase.textContent = f > 2 / 3 ? 'THINK' : f > 1 / 3 ? 'PAIR' : 'SHARE';
+    ring.style.stroke = rem <= 0 ? '#ff5470' : f < 1 / 3 ? '#ffc847' : f < 2 / 3 ? '#42f5a1' : '#4cc9ff';
+  }
+  function tick() {
+    const now = performance.now(); rem = Math.max(0, rem - (now - last) / 1000); last = now;
+    const whole = Math.ceil(rem); if (whole !== lastWhole && whole <= 5 && whole > 0) Sfx.tick(); lastWhole = whole;
+    draw();
+    if (rem <= 0) { stop(); Sfx.alarm(); start.textContent = '▶ Start'; }
+  }
+  function stop() { running = false; clearInterval(id); start.textContent = '▶ Start'; }
+  function toggle() {
+    if (running) { stop(); start.textContent = '▶ Resume'; return; }
+    if (rem <= 0) rem = total;
+    running = true; last = performance.now(); start.textContent = '⏸ Pause'; id = setInterval(tick, 100); Sfx.click();
+  }
+  function setTotal(s) { stop(); total = rem = lastWhole = s; draw(); }
+  start.addEventListener('click', toggle);
+  $('#tReset').addEventListener('click', () => { Sfx.click(); setTotal(total); });
+  $$('[data-preset]').forEach(b => b.addEventListener('click', () => { Sfx.click(); setTotal(+b.dataset.preset); }));
+  draw();
+})();
+
+/* ---------- Quiz Arena + leaderboard ---------- */
+const Quiz = (() => {
+  const BANK = [
+    { q: 'On level ground (no air resistance), which launch angle gives the maximum range?',
+      o: ['30°', '45°', '60°', '90°'], a: 1, why: 'R = v²·sin2θ / g is largest when sin 2θ = 1, i.e. θ = 45°.' },
+    { q: 'A roller-coaster cart rides inside a vertical loop of radius R. What is the minimum speed at the top to stay on the track?',
+      o: ['√(g·R)', '√(2·g·R)', '√(5·g·R)', 'g·R'], a: 0, why: 'At the top, gravity alone must supply the centripetal force: m·g = m·v²/R ⇒ v² = g·R.' },
+    { q: 'A light ray passes from air into glass (n = 1.5). What happens to its direction at the surface?',
+      o: ['It bends toward the normal', 'It bends away from the normal', 'It does not bend', 'It is always totally reflected'], a: 0,
+      why: 'Light slows in glass; by Snell\'s law sin θ₂ = sin θ₁ / 1.5, so the angle to the normal shrinks.' },
+    { q: 'Why do astronauts on the ISS feel weightless although gravity there is about 90 % of surface gravity?',
+      o: ['There is no gravity in space', 'They and the station are in continuous free-fall around Earth', 'Centrifugal force cancels gravity exactly in a vacuum', 'The ISS shields them from gravity'], a: 1,
+      why: 'Orbiting means falling while moving sideways fast enough to keep missing Earth, so nothing pushes back on them.' }
+  ];
+  const body = $('#qBody'), BOTS = [['Newton', 620], ['Curie', 540], ['Feynman', 470], ['Tesla', 390], ['Hawking', 320], ['Lovelace', 210]];
+  let qs = [], i = 0, score = 0, streak = 0, gained = 0, locked = false;
+  const shuffle = a => { a = a.slice(); for (let k = a.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [a[k], a[j]] = [a[j], a[k]]; } return a; };
+  function start() {
+    qs = shuffle(BANK).map(q => ({ q: q.q, why: q.why, o: shuffle(q.o.map((t, k) => ({ t, c: k === q.a }))) }));
+    i = 0; score = 0; streak = 0; gained = 0; render();
+  }
+  function render() {
+    locked = false;
+    if (i >= qs.length) {
+      Sfx.win();
+      body.innerHTML = `<div class="qprog"><span>Quiz complete</span></div><div class="big-score">${score} / ${qs.length}</div>
+        <p>You earned <b>${gained} XP</b> in the arena.${score === qs.length ? ' Perfect run! 🌟' : ''}</p>
+        <div class="btnrow"><button class="btn primary" id="qAgain">↺ Play again</button><button class="btn" data-go="0">Back to start</button></div>`;
+      $('#qAgain').addEventListener('click', () => { Sfx.click(); start(); });
+      return;
+    }
+    const q = qs[i];
+    body.innerHTML = `<div class="qprog"><span>Question ${i + 1} of ${qs.length}</span><span>Streak 🔥 ${streak}</span></div>
+      <div class="qbar"><i style="width:${i / qs.length * 100}%"></i></div>
+      <h3 style="margin:0">${q.q}</h3>
+      <div class="opts">${q.o.map((o, k) => `<button class="opt" data-k="${k}">${'ABCD'[k]}. ${o.t}</button>`).join('')}</div>
+      <div class="fb" id="qFb"></div>
+      <div class="btnrow"><button class="btn primary" id="qNext" hidden>${i === qs.length - 1 ? 'See results' : 'Next →'}</button></div>`;
+    $('#qNext').addEventListener('click', () => { Sfx.click(); i++; render(); });
+  }
+  body.addEventListener('click', e => {
+    const b = e.target.closest('.opt'); if (!b || locked) return; locked = true;
+    const q = qs[i], k = +b.dataset.k, ok = q.o[k].c;
+    $$('.opt', body).forEach((btn, n) => { btn.disabled = true; if (q.o[n].c) btn.classList.add('right'); });
+    if (ok) {
+      streak++; score++; const xp = 50 + Math.min(streak - 1, 3) * 10; gained += xp; Sfx.correct(); Game.add(xp, streak > 1 ? `Streak x${streak}` : 'Correct!');
+    } else { streak = 0; b.classList.add('wrong'); Sfx.wrong(); }
+    $('#qFb').innerHTML = `<b style="color:var(${ok ? '--gr' : '--rd'})">${ok ? 'Correct!' : 'Not quite.'}</b> ${q.why}`;
+    $('#qNext').hidden = false;
+  });
+  function lb() {
+    const name = ($('#qName').value.trim() || 'You').slice(0, 14);
+    const rows = [...BOTS.map(([n, x]) => ({ n, x, me: false })), { n: name, x: Game.xp, me: true }].sort((a, b) => b.x - a.x);
+    $('#qLb').innerHTML = rows.map(r => `<li class="${r.me ? 'me' : ''}"><span></span><b>${r.x} XP</b></li>`).join('');
+    $$('#qLb li span').forEach((s, k) => { s.textContent = rows[k].n + (rows[k].me ? ' (you)' : ''); });   // textContent: safe for user names
+  }
+  $('#qName').value = store.get('pv_name', '');
+  $('#qName').addEventListener('input', () => { store.set('pv_name', $('#qName').value); lb(); });
+  Game.listeners.push(lb); lb(); start();
+  return { start };
+})();
+
+/* ---------- Boot + main loop ---------- */
+Game.render();
+Deck.go(0);
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  BG.frame(dt);
+  switch (Deck.id) {
+    case 's-cannon':  Cannon.frame(dt); break;
+    case 's-coaster': Coaster.frame(dt); break;
+    case 's-optics':  Optics.frame(dt); break;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
